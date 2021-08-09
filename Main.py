@@ -21,6 +21,7 @@ import botocore
 from io import StringIO
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 
 
 
@@ -175,39 +176,7 @@ def finding_data(data, url):
     #print(data)
     return data
             
-
-
 # In[7]:
-
-
-"""e = Extractor.from_yaml_file('selectors.yml')
-with open("urls.txt",'r') as urllist, open('data.csv','w', encoding="utf-8", errors="ignore") as outfile:
-    writer = csv.DictWriter(outfile, fieldnames=["title","content","date", "author","rating","product","url"])
-    writer.writeheader()
-    count = 0
-    
-    for url in urllist.readlines():
-        data = scrape(url)
-        while data["product_title"] == None:
-            data = scrape(url)
-
-        while data["next_page"] != None:
-            finding_data(data, writer, url)
-            count += 1
-            url = "https://www.amazon.in" + data["next_page"]
-            data = scrape(url)
-            while data["product_title"] == None:
-                data = scrape(url)  
-            print(count)
-        finding_data(data, writer, url)
-        count += 1
-        print(count)
-        df = pd.read_csv('data.csv')
-        print(len(df))
-                
-    
-    print("*****************************************************************")"""
-
 
 # In[8]:
 
@@ -305,40 +274,6 @@ def relative_rates(timediff, allrating, allverified, all_helped):
 
 # In[29]:
 
-
-def main(price_e, i, data):
-    df_data = pd.read_csv('data.csv')
-    name = data['product_title']
-    
-    data["product_link"] = "https://www.amazon.in"+data["product_link"]
-    price = get_price(data["product_link"])
-    data = finding_data(data, i)
-    
-    for r in data["reviews"]:
-        df_data = df_data.append(r, ignore_index = True)
-    df_data.to_csv('data.csv', index = False)
-    """
-    while data["next_page"] != None:
-        next_page = get_nextpage(data)
-        print(next_page)
-        data = scrape(next_page, e)
-        
-        while data["product_title"] == None or data["reviews"] == None:
-            data = scrape(next_page, e)
-        data = finding_data(data, i)
-        
-        for r in data["reviews"]:
-            df_data = df_data.append(r, ignore_index = True)
-        df_data.to_csv('data.csv', index = False)
-        
-        data = finding_data(data, next_page)
-        """
-    df_len, deltaT, rate, revenue, ind_time_diff, ind_rating, ind_verified = getrate(price)
-    #recordlinks(name, df_len, deltaT, rate, i, revenue)
-    return ind_time_diff, ind_rating, ind_verified
-    
-
-
 # In[30]:
 
 
@@ -407,11 +342,21 @@ all_amazon_ratings = []
 prime = True
 today = parse(date.today().strftime("%Y-%m-%d"))
 
+refresh = st.button("Refresh")
 
+if refresh:
+    st.session_state["w"] = []
+place = st.empty()
 
 if "w" not in st.session_state:
     st.session_state["w"] = []
-ask= st.text_input("Enter")
+    
+if len(st.session_state) > 1:
+    for k in st.session_state:
+        if st.session_state[k] == True:
+            st.session_state.w.pop(int(k))
+            
+ask= place.text_input("Enter", value="")
 if ask == "" or ask in st.session_state["w"]:
     pass
 else:
@@ -421,16 +366,29 @@ else:
     except:
         st.error('Not a valid URL')
 
-#st.session_state["w"] = set(st.session_state["w"])
+for l in range(0, len(st.session_state.w)):
+    with st.container():
+        col1, col2 = st.columns([1, 1])
+        col1.text(st.session_state.w[l])
+        col2.button("X", key=str(l))
+#st.write(st.session_state)
 
-st.write(st.session_state["w"])
-confirm = st.button("Refresh")
-if confirm:
+
+confirm = st.button("Create Table?")
+if confirm and len(st.session_state.w)> 1:
     theurls = st.session_state["w"]
     with st.spinner('Creating Table...'):
+        stat = st.empty()
         for i in theurls:
+            
             clear_none()
-            asin = find_asin(i)
+            try:
+                asin = find_asin(i)
+            except:
+                st.write("ASIN NUMBER NOT FOUND!")
+                prime = False
+                break
+            
             file_name = asin+'.csv'
             print(i)
             try:
@@ -438,7 +396,7 @@ if confirm:
                 last = parse(df["LastModified"].strftime("%Y-%m-%d"))
                 diff = (today-last).days
                 
-                if diff > 5:
+                if diff > 3:
                     res.Object('productreviewsdata', file_name).delete()
                     s3.get_object(Bucket='productreviewsdata', Key=file_name)
                 else:
@@ -449,6 +407,7 @@ if confirm:
                     data = scrape(i, e)
                     while data["product_title"] == None or data["reviews"] == None:
                         data = scrape(i, e)
+                    stat.info(data["product_title"])
                     product_names.append(data["product_title"])
                     data["product_link"] = "https://www.amazon.in"+data["product_link"]
                     price, amazon_rating = get_details(data["product_link"])
@@ -456,29 +415,30 @@ if confirm:
                     urls_used.append(i)
                     review_len = get_total_reviews(data)
                     #st.write(data["product_title"], price)
-                    all_reviews.append(review_len)
+                    
                     
                     #print(df_data)
                     df_len, deltaT, rate, ind_time_diff, ind_rating, ind_verified, ind_helped = getrate(df_data)
+                    print(df_len)
+                    all_reviews.append(df_len)
                     all_time_diff.append(ind_time_diff)
                     all_rating.append(ind_rating)
                     all_verified.append(ind_verified)
                     all_helped.append(ind_helped)
-                    print(ind_time_diff)
                 
             except botocore.exceptions.ClientError as err:
                 if err.response['Error']['Code'] == "NoSuchKey":
                     data = scrape(i, e)
                     while data["product_title"] == None or data["reviews"] == None:
                         data = scrape(i, e)
+                    stat.info(data["product_title"])
                     product_names.append(data["product_title"])
                     data["product_link"] = "https://www.amazon.in"+data["product_link"]
                     price, amazon_rating = get_details(data["product_link"])
                     all_amazon_ratings.append(amazon_rating)
                     urls_used.append(i)
                     review_len = get_total_reviews(data)
-                    print(review_len)
-                    all_reviews.append(review_len)
+                    
                     #st.write(data["product_title"], price)
                     if data["next_page"] == None:
                         all_links = []
@@ -492,12 +452,14 @@ if confirm:
                             link = results[result]
                             print(link)
                             data = result.result()
-                            while data["product_title"] == None:
-                                data = scrape(link, e)
-                            for i in data["reviews"]:
-                                if i["rating"] == None:
+                            this_prime=True
+                            while this_prime:
+                                if data["product_title"] == None:
                                     data = scrape(link, e)
-                                    break
+                                else:
+                                    this_prime=False
+
+ 
                             if data["reviews"] == None:
                                 pass
                             else:
@@ -509,13 +471,14 @@ if confirm:
                     upload(res, asin, file_name)
                     df_data = pd.read_csv('data.csv')
                     df_len, deltaT, rate, ind_time_diff, ind_rating, ind_verified, ind_helped = getrate(df_data)
-
+                    print(df_len)
+                    all_reviews.append(df_len)
                     all_time_diff.append(ind_time_diff)
                     all_rating.append(ind_rating)
                     all_verified.append(ind_verified)
                     all_helped.append(ind_helped)
-                
-        prime=True
+                    prime=True
+        #prime=True
         dataf = pd.DataFrame({'Product': [], 'Our Rating': [], 'Total Reviews': [], 'Amazon Given Rating': [], 'URL': []})
         if prime:
             rates = relative_rates(all_time_diff, all_rating, all_verified, all_helped)
@@ -531,18 +494,14 @@ if confirm:
                             }
                 print(to_insert)
                 dataf = dataf.append(to_insert, ignore_index=True)
+            dataf = dataf.sort_values(by=['Our Rating'], ascending=False)
+            dataf.set_index('Product', inplace=True)
+            stat.empty()
+            st.table(dataf.style.format({"Total Reviews": "{:.0f}"}))
         else:
             print("Thanks for stopping by!!")
-
-        def make_clickable(link):
-            return f'<a target="_blank" href="{link}">{link}</a>'
         
-        dataf = dataf.sort_values(by=['Our Rating'], ascending=False)
-        #dataf['URL'] = dataf['URL'].apply(make_clickable)
-        #dataf = dataf.to_html(escape=False)
-        #st.write(dataf, unsafe_allow_html=True)
-        dataf.set_index('Product', inplace=True)
-        st.table(dataf.style.format({"Total Reviews": "{:.0f}"}))
+            
 
                 #print(data)
 
