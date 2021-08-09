@@ -1,0 +1,6 @@
+[runner]
+
+magicEnabled = false
+
+[server]
+port=8080
