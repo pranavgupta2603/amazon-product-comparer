@@ -1,0 +1,7 @@
+python-dateutil
+requests
+selectorlib
+numpy
+boto3
+pandas
+streamlit
