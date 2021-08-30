@@ -331,7 +331,7 @@ def list_down():
     for l in range(0, len(st.session_state.final)):
         with st.container():
             col1, col2= st.columns([2, 0.5])
-            exp = col1.expander(st.session_state.final[l])
+            exp = col1.expander(st.session_state.final[l].split("/ref")[0])
             col2.button("X", key=str(l))
             ASIN = find_asin(st.session_state.final[l])
             all_the_asin.append(ASIN)
@@ -361,7 +361,7 @@ string = ""
 prime = True
 today = parse(date.today().strftime("%Y-%m-%d"))
 st.set_page_config(layout="wide")
-id_place = st.empty()
+
 st.markdown("""
 <style>
 td.css-57lzw8:nth-of-type(4){}
@@ -369,8 +369,7 @@ td.css-57lzw8:nth-of-type(4){}
 
 """, unsafe_allow_html=True)
 #st.write(st.session_state)
-if "create_it" in st.session_state:
-    st.info("Keep Session ID to access and save your comparisons.")
+
 if "w" not in st.session_state:
     st.session_state["w"] = []
 
@@ -380,20 +379,22 @@ if "final" not in st.session_state:
     st.session_state["final"] = []
 if "chosen" not in st.session_state:
     st.session_state.chosen = ""
-st.markdown("<hr>", unsafe_allow_html=True)
-enter_it, lol, lol2, create_it = st.columns([1.8, 1, 1.5, 0.9])
+#st.markdown("<hr>", unsafe_allow_html=True)
 
-enter_uni_id = enter_it.text_input("Enter Unique ID:")
+#lay1, lay2 = st.columns(2)
+
+enter_it, lol2, create_it = st.columns(3)
+
+enter_uni_id = lol2.text_input("Enter Unique ID:")
+lol2.write("OR")
 if "iden" not in st.session_state:
     st.session_state["create_it"] = 0
 
+with enter_it:
+    id_place = st.empty()
+if "create_it" in st.session_state:
+    enter_it.info("Keep Session ID to access and save your comparisons.")
 with lol2:
-    st.write("")
-    st.write("")
-    st.write("OR")
-with create_it:
-    st.write("")
-    st.write("")
     thing = st.button("Create Session ID")
     if thing:
         if st.session_state["create_it"] !=0:
@@ -418,7 +419,7 @@ else:
         a = []
         indices = [("Comparison "+ str(num)) for num in range(1, len(sessions_here)+1)]
         #indices.insert(0, "Custom")
-        with st.container():
+        with create_it:
             
             chosen = st.selectbox("Choose Session:", indices)
             
@@ -444,7 +445,7 @@ else:
         st.session_state["iden"] = iden+".txt"
         id_place.write("Unique ID: " + iden)
     except:
-        enter_it.error("Unique ID not found. Create a new table to create one.")
+        lol2.error("Unique ID not found. Create a new table to create one.")
         prime_session=False
         
 st.markdown("<hr>", unsafe_allow_html=True)
