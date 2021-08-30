@@ -1,8 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[1]:
-
 import validators
 from selectorlib import Extractor
 import requests 
@@ -20,8 +15,8 @@ import boto3
 import botocore 
 from io import StringIO
 import pandas as pd
-import streamlit as st
-import streamlit.components.v1 as components
+#import streamlit as st
+#import streamlit.components.v1 as components
 import base64
 import uuid
 
@@ -173,7 +168,7 @@ def finding_data(data, url):
                     r['verified'] = "1"
             else:
                 r['verified'] = "0"
-                
+            r["amazon_rating"] = data["amazon_given_rating"].split(" out")[0]      
         
     #print(data)
     return data
@@ -191,11 +186,11 @@ def get_nextpage(data):
 
 
 def clear_none():
-    df = pd.read_csv('datalist.csv')
-    df.dropna(axis="rows", how="any", inplace = True)
-    df.to_csv('datalist.csv', index=False)
+    #df = pd.read_csv('datalist.csv')
+    #df.dropna(axis="rows", how="any", inplace = True)
+    #df.to_csv('datalist.csv', index=False)
     with open('data.csv', 'w+', encoding="utf-8", errors="ignore") as outfile:
-        writer = csv.DictWriter(outfile, fieldnames=["title","content","date", "author","rating","product","url", "verified", "helped"])
+        writer = csv.DictWriter(outfile, fieldnames=["title","content","date", "author","rating","product","url", "verified", "helped", "amazon_rating"])
         writer.writeheader()
     outfile.close()
 #clear_none()
@@ -280,6 +275,8 @@ def find_all_links(link, num):
     link = link.split("?")
     all_links = []
     num_pages = math.ceil(int(num)/10)
+    if num_pages > 500:
+        num_pages = 500
     for page in range(0, num_pages):
         link[1] = "pageNumber=" + str(page+1)
         temp_data = {"next_page": "?".join(link)}
@@ -326,190 +323,88 @@ def myFunc(e):
 # In[42]:
 
 
-urls = open('urls5.txt', 'r')
-e = Extractor.from_yaml_file('selectors.yml')
-price_e = Extractor.from_yaml_file('details.yml')
-datalist = pd.read_csv('datalist.csv')
-all_time_diff = []
-all_rating = []
-all_verified = []
-all_helped = []
-urls_used = []
-product_names = []
-all_reviews = []
-all_amazon_ratings = []
-string = ""
-prime = True
-today = parse(date.today().strftime("%Y-%m-%d"))
+#urls = open('urls5.txt', 'r')
 
-refresh = st.button("Refresh")
-
-if refresh:
-    st.session_state["w"] = []
-place = st.empty()
-
-if "w" not in st.session_state:
-    st.session_state["w"] = []
+while True:
     
-if len(st.session_state) > 1:
-    for k in st.session_state:
-        if st.session_state[k] == True:
-            st.session_state.w.pop(int(k))
+    e = Extractor.from_yaml_file('selectors.yml')
+    price_e = Extractor.from_yaml_file('details.yml')
+    #datalist = pd.read_csv('datalist.csv')
+    all_time_diff = []
+    all_rating = []
+    all_verified = []
+    all_helped = []
+    urls_used = []
+    product_names = []
+    all_reviews = []
+    all_amazon_ratings = []
+    string = ""
+    prime = True
+    today = parse(date.today().strftime("%Y-%m-%d"))
+
+    bucket = res.Bucket('productreviewsdata')
+    for o in bucket.objects.all():
+        if o.key.find('sessions/')== -1 and o.key !="alldata/":
+            #file = o.key.replace("alldata/", "")
             
-ask= place.text_input("Enter", value="")
-if ask == "" or ask in st.session_state["w"]:
-    pass
-else:
-    try:
-        check = requests.get(ask)
-        st.session_state["w"].append(ask)
-
-    except:
-        st.error('Not a valid URL')
-
-for l in range(0, len(st.session_state.w)):
-    with st.container():
-        col1, col2 = st.columns([1, 1])
-        col1.text(st.session_state.w[l])
-        col2.button("X", key=str(l))
-#st.write(st.session_state)
-
-
-confirm = st.button("Create Table?")
-if confirm and len(st.session_state.w)> 1:
-    theurls = st.session_state["w"]
-    with st.spinner('Creating Table...'):
-        stat = st.empty()
-        for i in theurls:
-            string = string+i+"\n"
-            clear_none()
-            try:
-                asin = find_asin(i)
-            except:
-                st.write("ASIN NUMBER NOT FOUND!")
-                prime = False
-                break
-            
-            file_name = asin+'.csv'
-            print(i)
-            try:
-                df = s3.get_object(Bucket='productreviewsdata', Key="alldata/"+file_name)
+            if len(o.key.replace("alldata/","").replace(".csv","")) != 10:
+                print(o.key)
+                res.Object('productreviewsdata', o.key).delete()
+            else:
+                df = s3.get_object(Bucket='productreviewsdata', Key=o.key)
+                
+                df_data = pd.read_csv(df["Body"])
                 last = parse(df["LastModified"].strftime("%Y-%m-%d"))
                 diff = (today-last).days
-                print(diff)
+            #data['date'] = data['date'].apply(lambda x: pd.Timestamp(x).strftime('%Y-%m-%d'))
+            #d1 =(parse(date.today().strftime("%Y-%m-%d")) - parse(max(data['date']))).days
+            if len(df_data)==0 or (diff > 5 and len(df_data)<2000):
+                asin = o.key.replace("alldata/", "").replace(".csv", "")
+                i = "https://www.amazon.in/product-reviews/"+asin
+                data = scrape(i, e)
+                while data["product_title"]==None and data['total_reviews']==None:
+                    data = scrape(i, e)
+                review_len = get_total_reviews(data)
                 
-                if diff > 3:
-                    res.Object('productreviewsdata', "alldata/"+file_name).delete()
-                    s3.get_object(Bucket='productreviewsdata', Key="alldata/"+file_name) #causes an error
+                if data["next_page"] == None:
+                    all_links = []
+                    all_links.append(i)
                 else:
-                    
-                    
-                    body = df["Body"].read().decode('utf-8')
-                    df_data = pd.read_csv(StringIO(body))
-                    data = scrape(i, e)
-                    while data["product_title"] == None or data["reviews"] == None:
-                        data = scrape(i, e)
-                    stat.info("Getting " + data["product_title"] + "....")
-                    product_names.append(data["product_title"])
-                    data["product_link"] = "https://www.amazon.in"+data["product_link"]
-                    price, amazon_rating = get_details(data["product_link"])
-                    all_amazon_ratings.append(amazon_rating)
-                    urls_used.append(i)
-                    review_len = get_total_reviews(data)
-                    #st.write(data["product_title"], price)
-                    
-                    
-                    #print(df_data)
-                    df_len, deltaT, rate, ind_time_diff, ind_rating, ind_verified, ind_helped = getrate(df_data)
-                    print(df_len)
-                    all_reviews.append(df_len)
-                    all_time_diff.append(ind_time_diff)
-                    print(ind_time_diff)
-                    all_rating.append(ind_rating)
-                    all_verified.append(ind_verified)
-                    all_helped.append(ind_helped)
-                
-            except botocore.exceptions.ClientError as err:
-                if err.response['Error']['Code'] == "NoSuchKey":
-                    data = scrape(i, e)
-                    while data["product_title"] == None or data["reviews"] == None:
-                        data = scrape(i, e)
-                    stat.info("Scraping "+ data["product_title"]+"....")
-                    product_names.append(data["product_title"])
-                    data["product_link"] = "https://www.amazon.in"+data["product_link"]
-                    price, amazon_rating = get_details(data["product_link"])
-                    all_amazon_ratings.append(amazon_rating)
-                    urls_used.append(i)
-                    review_len = get_total_reviews(data)
-                    
-                    #st.write(data["product_title"], price)
-                    if data["next_page"] == None:
-                        all_links = []
-                        all_links.append(i)
-                    else:
-                        all_links = find_all_links(data["next_page"], review_len)
-
-                    with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
-                        results = {executor.submit(scrape, link, e): link for link in all_links}
-                        for result in concurrent.futures.as_completed(results):
-                            link = results[result]
-                            print(link)
-                            data = result.result()
-                            
-                            this_prime=True
-                            while this_prime:
-                                if data["product_title"] == None:
-                                    data = scrape(link, e)
-                                else:
-                                    this_prime=False
- 
-                            if data["reviews"] == None:
-                                pass
+                    all_links = find_all_links(data["next_page"], review_len)
+                with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+                    results = {executor.submit(scrape, link, e): link for link in all_links}
+                    for result in concurrent.futures.as_completed(results):
+                        link = results[result]
+                        print(link)
+                        data = result.result()
+                        
+                        this_prime=True
+                        while this_prime:
+                            if data["product_title"] == None:
+                                data = scrape(link, e)
                             else:
-                                data = finding_data(data, i)
-                                df_data = pd.read_csv('data.csv')
-                                for r in data["reviews"]:
-                                    df_data = df_data.append(r, ignore_index = True)
-                                df_data.to_csv('data.csv', index = False)
-                    upload(res, asin, file_name)
-                    df_data = pd.read_csv('data.csv')
-                    df_len, deltaT, rate, ind_time_diff, ind_rating, ind_verified, ind_helped = getrate(df_data)
-                    print(df_len)
-                    all_reviews.append(df_len)
-                    all_time_diff.append(ind_time_diff)
-                    all_rating.append(ind_rating)
-                    all_verified.append(ind_verified)
-                    all_helped.append(ind_helped)
-                    prime=True
-        #prime=True
-        iden = str(uuid.uuid4()) + ".txt"
-        res.Object('productreviewsdata', 'sessions/'+iden).put(Body=string)
-        dataf = pd.DataFrame({'Product': [], 'Our Rating': [], 'Total Reviews': [], 'Amazon Given Rating': [], 'URL': []})
-        if prime:
-            rates = relative_rates(all_time_diff, all_rating, all_verified, all_helped)
-            for record in range(0, len(urls_used)):
-                #dataf.append([product_names[record], all_reviews[record], rates[record], all_amazon_ratings[record]])
-                
-                to_insert = {
-                            'Product': product_names[record],
-                            'Our Rating': rates[record],
-                            'Total Reviews': all_reviews[record],
-                            'Amazon Given Rating': all_amazon_ratings[record],
-                            'URL': urls_used[record]
-                            }
-                print(to_insert)
-                dataf = dataf.append(to_insert, ignore_index=True)
-            dataf = dataf.sort_values(by=['Our Rating'], ascending=False)
-            dataf.set_index('Product', inplace=True)
-            stat.empty()
-            st.table(dataf.style.format({"Total Reviews": "{:.0f}"}))
-            st.dataframe(dataf)
-        else:
-            print("Thanks for stopping by!!")
-        
-            
+                                this_prime=False
 
-                #print(data)
+                        if data["reviews"] == None:
+                            pass
+                        else:
+                            data = finding_data(data, i)
+                            for r in data["reviews"]:
+                                df_data = df_data.append(r, ignore_index = True)
+                            df_data.to_csv('data.csv', index = False)
+                    print(df_data)
+                    csv_buffer = StringIO()
+                    df_data.to_csv(csv_buffer, index=False)
+                    if diff > 5 and len(df_data) > 0:
+                        res.Object("productreviewsdata", "alldata/"+asin+".csv").delete()
+                    res.Object("productreviewsdata", "alldata/"+asin+".csv").put(Body=csv_buffer.getvalue())
+    else:
+        print("Completed check...")
+    time.sleep(10)
+
+
+
+
 
 
 

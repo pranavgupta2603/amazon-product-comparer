@@ -49,3 +49,7 @@ total_reviews:
     css: 'div.a-section.a-spacing-medium div.a-row span'
     xpath: null
     type: Text
+amazon_given_rating:
+    css: 'div.a-row div.a-fixed-left-grid-col.a-col-left'
+    xpath: null
+    type: Text
