@@ -359,8 +359,6 @@ while True:
             #data['date'] = data['date'].apply(lambda x: pd.Timestamp(x).strftime('%Y-%m-%d'))
             #d1 =(parse(date.today().strftime("%Y-%m-%d")) - parse(max(data['date']))).days
             if len(df_data)==0 or (diff > 5 and len(df_data)<2000):
-                if diff > 5 and len(df_data) > 0:
-                    res.Object("productreviewsdata", "alldata/"+asin+".csv").delete()
                 asin = o.key.replace("alldata/", "").replace(".csv", "")
                 i = "https://www.amazon.in/product-reviews/"+asin
                 data = scrape(i, e)
@@ -373,6 +371,7 @@ while True:
                     all_links.append(i)
                 else:
                     all_links = find_all_links(data["next_page"], review_len)
+                df_data = df_data.iloc[0:0]
                 with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
                     results = {executor.submit(scrape, link, e): link for link in all_links}
                     for result in concurrent.futures.as_completed(results):

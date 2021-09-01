@@ -20,7 +20,7 @@ import streamlit.components.v1 as components
 import base64
 import uuid
 import pyperclip
-
+from IPython.core.display import HTML
 
 # In[2]:
 
@@ -329,17 +329,31 @@ def myFunc(e):
 def list_down():
     all_the_asin = []
     for l in range(0, len(st.session_state.final)):
-        with st.container():
-            col1, col2= st.columns([2, 0.5])
-            exp = col1.expander(st.session_state.final[l].split("/ref")[0])
-            col2.button("X", key=str(l))
-            ASIN = find_asin(st.session_state.final[l])
-            all_the_asin.append(ASIN)
-            the_link = """https://ws-in.amazon-adsystem.com/widgets/q?ServiceVersion=20070822&OneJS=1&Operation=GetAdHtml&MarketPlace=IN&source=ss&ref=as_ss_li_til&ad_type=product_link&tracking_id=universalcont-21&language=en_IN&marketplace=amazon&region=IN&placement="""+ASIN+"""&asins="""+ASIN+"""&show_border=true&link_opens_in_new_window=true"""
-            with exp:
-                components.iframe(the_link, height=240, width=120)
+        col1, col2= st.columns([2, 0.5])
+        exp = col1.expander(st.session_state.final[l].split("/ref")[0])
+        col2.button("X", key=str(l))
+        ASIN = find_asin(st.session_state.final[l])
+        all_the_asin.append(ASIN)
+        the_link = """https://ws-in.amazon-adsystem.com/widgets/q?ServiceVersion=20070822&OneJS=1&Operation=GetAdHtml&MarketPlace=IN&source=ss&ref=as_ss_li_til&ad_type=product_link&tracking_id=universalcont-21&language=en_IN&marketplace=amazon&region=IN&placement="""+ASIN+"""&asins="""+ASIN+"""&show_border=true&link_opens_in_new_window=true"""
+        with exp:
+            components.iframe(the_link, height=240, width=120)
     
-        
+    
+          
+    #print(globals()["col"])
+    #print(globals()["col_an"])
+    #for n, val in enumerate(st.session_state["final"]):
+     #   globals()["var%d"%n] = val
+
+def create_vars(func_col):
+    for n, val in enumerate(func_col):
+        globals()["var%d"%n] = val
+    for n in range(0, len(func_col)):
+        with globals()["var"+str(n)]:
+            ASIN = find_asin(st.session_state.final[n])
+            the_link = """https://ws-in.amazon-adsystem.com/widgets/q?ServiceVersion=20070822&OneJS=1&Operation=GetAdHtml&MarketPlace=IN&source=ss&ref=as_ss_li_til&ad_type=product_link&tracking_id=universalcont-21&language=en_IN&marketplace=amazon&region=IN&placement="""+ASIN+"""&asins="""+ASIN+"""&show_border=true&link_opens_in_new_window=true"""
+            components.iframe(the_link, height=240, width=120)
+            st.button("X", key=str(n))
 # In[42]:
 
 urls = open('urls5.txt', 'r')
@@ -361,7 +375,7 @@ string = ""
 prime = True
 today = parse(date.today().strftime("%Y-%m-%d"))
 st.set_page_config(layout="wide")
-
+#a = st.sidebar.button("poop")
 st.markdown("""
 <style>
 td.css-57lzw8:nth-of-type(4){}
@@ -383,34 +397,45 @@ if "chosen" not in st.session_state:
 
 #lay1, lay2 = st.columns(2)
 
-enter_it, lol2, create_it = st.columns(3)
-
+#enter_it, lol2, create_it = st.sidebar.columns(3)
+enter_it = st.sidebar.container()
+lol2 = st.sidebar.container()
+create_it = st.sidebar.container()
+#st.sidebar.markdown("""<hr>""", unsafe_allow_html=True)
 enter_uni_id = lol2.text_input("Enter Unique ID:")
 lol2.write("OR")
-if "iden" not in st.session_state:
-    st.session_state["create_it"] = 0
+
+    
 
 with enter_it:
     id_place = st.empty()
+if "iden" not in st.session_state:
+    st.session_state["create_it"] = 0
+else:
+    id_place.text("Unique ID: " + st.session_state["iden"].replace(".txt", ""))
 if "create_it" in st.session_state:
-    enter_it.info("Keep Session ID to access and save your comparisons.")
+    enter_it.warning("Keep Session ID to access and save your comparisons.")
 with lol2:
     thing = st.button("Create Session ID")
     if thing:
         if st.session_state["create_it"] !=0:
-            id_place.write("Unique ID: " + st.session_state["iden"].replace(".txt", ""))
+            id_place.text("Unique ID: " + st.session_state["iden"].replace(".txt", ""))
+            #id_place.text(st.session_state["iden"].replace(".txt", ""))
             prime_session=False
         else:
             iden = str(uuid.uuid4())
             st.session_state["iden"] = iden + ".txt"
-            id_place.write("Unique ID: " + iden)
+            id_place.text("Unique ID: " + iden)
             st.session_state["create_it"] = 1
             prime_session = False
 
 if enter_uni_id == "":
+    #st.session_state["iden"] = ""
     prime_session=False
+    st.sidebar.markdown("""<hr>""", unsafe_allow_html=True)
 else:
     try:
+        
         check_iden = s3.get_object(Bucket="productreviewsdata", Key="sessions/"+enter_uni_id+".txt")
         already_in_body = check_iden["Body"].read().decode()
         sessions_here = already_in_body.split(",")
@@ -419,6 +444,7 @@ else:
         a = []
         indices = [("Comparison "+ str(num)) for num in range(1, len(sessions_here)+1)]
         #indices.insert(0, "Custom")
+        create_it.markdown("""<hr>""", unsafe_allow_html=True)
         with create_it:
             
             chosen = st.selectbox("Choose Session:", indices)
@@ -427,7 +453,7 @@ else:
             a = list(set(sessions_here[indices.index(chosen)].split("\n")))
             a.remove("")
             if st.session_state["refresh"] == True:
-                st.session_state.chosen = ""
+                st.session_state.final = []
             if chosen != st.session_state.chosen:
                 st.session_state.chosen = chosen
                 st.session_state["a"] = a
@@ -443,15 +469,17 @@ else:
         prime_session=True
         iden = enter_uni_id.replace(".txt", "")
         st.session_state["iden"] = iden+".txt"
-        id_place.write("Unique ID: " + iden)
+        id_place.text("Unique ID: " + iden)
+        st.sidebar.markdown("""<hr>""", unsafe_allow_html=True)
+
     except:
         lol2.error("Unique ID not found. Create a new table to create one.")
         prime_session=False
         
-st.markdown("<hr>", unsafe_allow_html=True)
+#st.markdown("<hr>", unsafe_allow_html=True)
 
 
-place = st.empty()
+#place = st.sidebar.empty()
    
 if len(st.session_state) > 1:
     for k in st.session_state:
@@ -459,7 +487,8 @@ if len(st.session_state) > 1:
             st.session_state["final"].pop(int(k))
             
 st.session_state["temp_copy"] = ""
-con = st.button("Push to Paste")
+push1, conf1, refre1 = st.sidebar.columns([1, 1, 1])
+con = push1.button("Push to Paste")
 if con:
     s = pyperclip.paste()
     if s == st.session_state["temp_copy"]:
@@ -476,25 +505,29 @@ if con:
                 
         except:
             st.error('Not a valid URL')
-
-st.markdown("<hr>", unsafe_allow_html = True)
-
-col, col_an = st.columns([1, 0.365])
-confirm = col.button("Compare")
-refresh = col_an.button("Refresh List", key="refresh")
-list_down()
-
+#st.sidebar.markdown("<hr>", unsafe_allow_html = True)
+#col, col_an = st.columns([1, 0.365])
+confirm = conf1.button("Compare")
+refresh = refre1.button("Refresh List", key="refresh")
+#list_down()
+all_the_asin = []
+if len(st.session_state.final) == 0:
+        pass
+else: 
+    exp=st.expander("Expand")
+    with exp:
+        create_vars(st.columns(len(st.session_state.final)))
 if confirm and len(st.session_state.final)> 1:
     #print(st.session_state["w"])
     if "iden" not in st.session_state:
         iden = str(uuid.uuid4()) 
         st.session_state["iden"] = iden+ ".txt"
-        id_place.write("Unique ID: " + iden)
+        id_place.text("Unique ID: " + iden)
         prime_session = False
         
     theurls = st.session_state["final"]
     with st.spinner('Creating Table...'):
-        id_place.write("Unique ID: " + st.session_state["iden"])
+        id_place.text("Unique ID: " + st.session_state["iden"])
         stat = st.empty()
         
         for i in theurls:
@@ -623,6 +656,7 @@ if confirm and len(st.session_state.final)> 1:
         dataf = pd.DataFrame({'Product': [], 'Our Rating': [], 'Total Reviews': [], 'No. of Reviews less than 100 days':[], 'No. of Reviews less than 100 days given 5 Stars':[],'Amazon Given Rating': [], 'URL': []})
     
         if prime and len(all_time_diff) == len(st.session_state["final"]):
+            
             rates = relative_rates(all_time_diff, all_rating, all_verified, all_helped)
             for record in range(0, len(urls_used)):
                 #dataf.append([product_names[record], all_reviews[record], rates[record], all_amazon_ratings[record]])
