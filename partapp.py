@@ -374,11 +374,17 @@ all_count_of_day = []
 string = ""
 prime = True
 today = parse(date.today().strftime("%Y-%m-%d"))
-st.set_page_config(layout="wide")
+st.set_page_config(
+     page_title="Product Reviews Comparer",
+     layout="wide")
 #a = st.sidebar.button("poop")
 st.markdown("""
 <style>
+#MainMenu{visibility: hidden;} 
 td.css-57lzw8:nth-of-type(4){}
+footer, label.css-zyb2jl, img.css-1jhkrss, button.css-bl767a {visibility: hidden;}
+button.css-19deh3e, button.css-6163i7, button.css-14n4bfl{visibility: hidden; cursor: none;}
+
 </style>
 
 """, unsafe_allow_html=True)
@@ -398,34 +404,32 @@ if "chosen" not in st.session_state:
 #lay1, lay2 = st.columns(2)
 
 #enter_it, lol2, create_it = st.sidebar.columns(3)
+st.sidebar.text("Unique ID:")
 enter_it = st.sidebar.container()
 lol2 = st.sidebar.container()
 create_it = st.sidebar.container()
 #st.sidebar.markdown("""<hr>""", unsafe_allow_html=True)
 enter_uni_id = lol2.text_input("Enter Unique ID:")
 lol2.write("OR")
-
-    
-
 with enter_it:
     id_place = st.empty()
 if "iden" not in st.session_state:
     st.session_state["create_it"] = 0
 else:
-    id_place.text("Unique ID: " + st.session_state["iden"].replace(".txt", ""))
+    id_place.code(st.session_state["iden"].replace(".txt", ""))
 if "create_it" in st.session_state:
     enter_it.warning("Keep Session ID to access and save your comparisons.")
 with lol2:
     thing = st.button("Create Session ID")
     if thing:
         if st.session_state["create_it"] !=0:
-            id_place.text("Unique ID: " + st.session_state["iden"].replace(".txt", ""))
-            #id_place.text(st.session_state["iden"].replace(".txt", ""))
+            id_place.code(st.session_state["iden"].replace(".txt", ""))
+            #id_place.code(st.session_state["iden"].replace(".txt", ""))
             prime_session=False
         else:
             iden = str(uuid.uuid4())
             st.session_state["iden"] = iden + ".txt"
-            id_place.text("Unique ID: " + iden)
+            id_place.code(iden)
             st.session_state["create_it"] = 1
             prime_session = False
 
@@ -469,7 +473,7 @@ else:
         prime_session=True
         iden = enter_uni_id.replace(".txt", "")
         st.session_state["iden"] = iden+".txt"
-        id_place.text("Unique ID: " + iden)
+        id_place.code(iden)
         st.sidebar.markdown("""<hr>""", unsafe_allow_html=True)
 
     except:
@@ -522,12 +526,12 @@ if confirm and len(st.session_state.final)> 1:
     if "iden" not in st.session_state:
         iden = str(uuid.uuid4()) 
         st.session_state["iden"] = iden+ ".txt"
-        id_place.text("Unique ID: " + iden)
+        id_place.code(iden)
         prime_session = False
         
     theurls = st.session_state["final"]
     with st.spinner('Creating Table...'):
-        id_place.text("Unique ID: " + st.session_state["iden"])
+        id_place.code(st.session_state["iden"].replace(".txt", ""))
         stat = st.empty()
         
         for i in theurls:
@@ -662,7 +666,7 @@ if confirm and len(st.session_state.final)> 1:
                 #dataf.append([product_names[record], all_reviews[record], rates[record], all_amazon_ratings[record]])
                 
                 to_insert = {
-                            'Product': product_names[record],
+                            'Product': product_names[record][:70]+"...",
                             'Our Rating': rates[record],
                             'Total Reviews': all_reviews[record],
                             'No. of Reviews less than 100 days': str(all_count_of_day[record]),
