@@ -358,7 +358,7 @@ while True:
                 diff = (today-last).days
             #data['date'] = data['date'].apply(lambda x: pd.Timestamp(x).strftime('%Y-%m-%d'))
             #d1 =(parse(date.today().strftime("%Y-%m-%d")) - parse(max(data['date']))).days
-            if len(df_data)==0 or (diff > 5 and len(df_data)<2000):
+            if len(df_data)==0 or (diff >= 5 and len(df_data)<=5000):
                 asin = o.key.replace("alldata/", "").replace(".csv", "")
                 i = "https://www.amazon.in/product-reviews/"+asin
                 data = scrape(i, e)
