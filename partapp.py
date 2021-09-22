@@ -199,9 +199,9 @@ def get_nextpage(data):
 
 
 def clear_none():
-    df = pd.read_csv('datalist.csv')
-    df.dropna(axis="rows", how="any", inplace = True)
-    df.to_csv('datalist.csv', index=False)
+    #df = pd.read_csv('datalist.csv')
+    #df.dropna(axis="rows", how="any", inplace = True)
+    #df.to_csv('datalist.csv', index=False)
     with open('data.csv', 'w+', encoding="utf-8", errors="ignore") as outfile:
         writer = csv.DictWriter(outfile, fieldnames=["title","content","date", "author","rating","product","url", "verified", "helped"])
         writer.writeheader()
