@@ -366,7 +366,7 @@ def create_vars(func_col):
 urls = open('urls5.txt', 'r')
 e = Extractor.from_yaml_file('selectors.yml')
 price_e = Extractor.from_yaml_file('details.yml')
-datalist = pd.read_csv('datalist.csv')
+#datalist = pd.read_csv('datalist.csv')
 all_five_star = []
 all_time_diff = []
 all_hun_days = []
