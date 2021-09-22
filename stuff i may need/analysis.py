@@ -39,3 +39,29 @@ def recordlinks(name, df_len, deltaT, rate, url):
         writer = csv.DictWriter(savefile, fieldnames=["product", 'num_reviews', "deltaT", "rate", "url"])
         writer.writerow(to_insert)
     print("Saved Data!")
+with push1:
+    copy_button = Button(label="Paste Product URL", sizing_mode="stretch_both",button_type="default", margin=[0, 0, 0, 0], css_classes=["copy-button"])
+    copy_button.js_on_event("button_click", CustomJS(code="""
+        #navigator.clipboard.readText().then(text => document.dispatchEvent(new CustomEvent("GET_TEXT", {detail: text})))"""))
+    st.markdown("<style>.copy-button{font-size: 20px;}</style>", unsafe_allow_html=True)
+    print(copy_button)
+    result = streamlit_bokeh_events(
+        copy_button,
+        events="GET_TEXT",
+        key="get_text",
+        override_height=40,
+        refresh_on_update=False,
+        debounce_time=0)
+
+if result:
+    if "GET_TEXT" in result:
+        s = result.get("GET_TEXT")
+        try:
+            check_paste = requests.get(s)
+            if s in st.session_state["final"] or s.find("amazon.in") == -1:
+                pass
+            else:
+                st.session_state["final"].append(s)
+        
+        except:
+            st.error('Not a valid URL')

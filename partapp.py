@@ -19,7 +19,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 import base64
 import uuid
-import pyperclip
+#import pyperclip
 #from IPython.core.display import HTML
 from bokeh.models.widgets import Button, Div
 from bokeh.models import CustomJS
@@ -354,10 +354,13 @@ def create_vars(func_col):
         globals()["var%d"%n] = val
     for n in range(0, len(func_col)):
         with globals()["var"+str(n)]:
-            ASIN = find_asin(st.session_state.final[n])
-            the_link = """https://ws-in.amazon-adsystem.com/widgets/q?ServiceVersion=20070822&OneJS=1&Operation=GetAdHtml&MarketPlace=IN&source=ss&ref=as_ss_li_til&ad_type=product_link&tracking_id=universalcont-21&language=en_IN&marketplace=amazon&region=IN&placement="""+ASIN+"""&asins="""+ASIN+"""&show_border=true&link_opens_in_new_window=true"""
-            components.iframe(the_link, height=240, width=120)
-            st.button("X", key=str(n))
+            try:
+                ASIN = find_asin(st.session_state.final[n])
+                the_link = """https://ws-in.amazon-adsystem.com/widgets/q?ServiceVersion=20070822&OneJS=1&Operation=GetAdHtml&MarketPlace=IN&source=ss&ref=as_ss_li_til&ad_type=product_link&tracking_id=universalcont-21&language=en_IN&marketplace=amazon&region=IN&placement="""+ASIN+"""&asins="""+ASIN+"""&show_border=true&link_opens_in_new_window=true"""
+                components.iframe(the_link, height=240, width=120)
+                st.button("X", key=str(n))
+            except:
+                 pass
 # In[42]:
 
 urls = open('urls5.txt', 'r')
@@ -515,34 +518,7 @@ if len(st.session_state) > 1:
             st.session_state["final"].pop(int(k))
             
 st.session_state["temp_copy"] = ""
-push1, conf1, refre1 = st.sidebar.columns([1, 1, 1])
-with push1:
-    copy_button = Button(label="Paste Product URL", sizing_mode="stretch_both",button_type="default", margin=[0, 0, 0, 0], css_classes=["copy-button"])
-    copy_button.js_on_event("button_click", CustomJS(code="""
-        navigator.clipboard.readText().then(text => document.dispatchEvent(new CustomEvent("GET_TEXT", {detail: text})))
-        """))
-    st.markdown("<style>.copy-button{font-size: 20px;}</style>", unsafe_allow_html=True)
-    print(copy_button)
-    result = streamlit_bokeh_events(
-        copy_button,
-        events="GET_TEXT",
-        key="get_text",
-        override_height=40,
-        refresh_on_update=False,
-        debounce_time=0)
 
-if result:
-    if "GET_TEXT" in result:
-        s = result.get("GET_TEXT")
-        try:
-            check_paste = requests.get(s)
-            if s in st.session_state["final"]:
-                pass
-            else:
-                st.session_state["final"].append(s)
-        
-        except:
-            st.error('Not a valid URL')
 #https://www.amazon.in/Bangalore-Refinery-999-9-Yellow-Gold/dp/B01HVB3PSY?ref_=Oct_DLandingS_D_9dee8709_60&smid=A2VFUGD63K4X10
 """con = push1.button("Push to Paste")
 if con:
@@ -563,8 +539,30 @@ if con:
             st.error('Not a valid URL')"""
 #st.sidebar.markdown("<hr>", unsafe_allow_html = True)
 #col, col_an = st.columns([1, 0.365])
+with st.sidebar.form(key='my_form'):
+    placeholder = st.empty()
+    s = placeholder.text_input(label='Enter URL')
+    submit = st.form_submit_button(label='Submit')
+            
+            
+if submit:
+    try:
+        check_paste = requests.get(s)
+        if s in st.session_state["final"] or s.find("amazon.in") == -1:
+            pass
+        else:
+            st.session_state["final"].append(s)
+        
+    except:
+        st.error('Not a valid URL')
+            
+conf1, refre1 = st.sidebar.columns([1, 1])
+print(st.session_state.final)
+
 confirm = conf1.button("Compare")
 refresh = refre1.button("Refresh List", key="refresh")
+if refresh:
+    st.session_state.final = []
 #list_down()
 all_the_asin = []
 if len(st.session_state.final) == 0:
