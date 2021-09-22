@@ -20,7 +20,11 @@ import streamlit.components.v1 as components
 import base64
 import uuid
 import pyperclip
-from IPython.core.display import HTML
+#from IPython.core.display import HTML
+from bokeh.models.widgets import Button, Div
+from bokeh.models import CustomJS
+from streamlit_bokeh_events import streamlit_bokeh_events
+from bokeh.io import show
 
 # In[2]:
 
@@ -383,11 +387,12 @@ st.markdown("""
 #MainMenu{visibility: hidden;} 
 td.css-57lzw8:nth-of-type(4){}
 footer, label.css-zyb2jl, img.css-1jhkrss, button.css-bl767a {visibility: hidden;}
-button.css-19deh3e, button.css-6163i7, button.css-14n4bfl{visibility: hidden; cursor: none;}
+.copy-button{color:red;}
 
 </style>
 
 """, unsafe_allow_html=True)
+#button.css-19deh3e, button.css-6163i7, button.css-14n4bfl{visibility: hidden; cursor: none;}
 #st.write(st.session_state)
 
 if "w" not in st.session_state:
@@ -484,7 +489,26 @@ else:
 
 
 #place = st.sidebar.empty()
-   
+"""components.html(
+<input type="text" id="copy-text-input" placeholder="Enter text to be copied">
+    <button id="poop">
+        Copy Text
+    </button>
+<p id="he"></p>
+<script>
+let copyButton = document.getElementById('poop');
+  copyButton.addEventListener('click', function () {
+      navigator.clipboard
+          .readText()
+          .then(
+              cliptext =>
+              
+                  (document.getElementById("he").innerText = cliptext),
+                  err => console.log(err)
+          );
+  });
+</script>
+)"""
 if len(st.session_state) > 1:
     for k in st.session_state:
         if st.session_state[k] == True and k.isdigit():
@@ -492,7 +516,35 @@ if len(st.session_state) > 1:
             
 st.session_state["temp_copy"] = ""
 push1, conf1, refre1 = st.sidebar.columns([1, 1, 1])
-con = push1.button("Push to Paste")
+with push1:
+    copy_button = Button(label="Paste Product URL", sizing_mode="stretch_both",button_type="default", margin=[0, 0, 0, 0], css_classes=["copy-button"])
+    copy_button.js_on_event("button_click", CustomJS(code="""
+        navigator.clipboard.readText().then(text => document.dispatchEvent(new CustomEvent("GET_TEXT", {detail: text})))
+        """))
+    st.markdown("<style>.copy-button{font-size: 20px;}</style>", unsafe_allow_html=True)
+    print(copy_button)
+    result = streamlit_bokeh_events(
+        copy_button,
+        events="GET_TEXT",
+        key="get_text",
+        override_height=40,
+        refresh_on_update=False,
+        debounce_time=0)
+
+if result:
+    if "GET_TEXT" in result:
+        s = result.get("GET_TEXT")
+        try:
+            check_paste = requests.get(s)
+            if s in st.session_state["final"]:
+                pass
+            else:
+                st.session_state["final"].append(s)
+        
+        except:
+            st.error('Not a valid URL')
+#https://www.amazon.in/Bangalore-Refinery-999-9-Yellow-Gold/dp/B01HVB3PSY?ref_=Oct_DLandingS_D_9dee8709_60&smid=A2VFUGD63K4X10
+"""con = push1.button("Push to Paste")
 if con:
     s = pyperclip.paste()
     if s == st.session_state["temp_copy"]:
@@ -508,7 +560,7 @@ if con:
                 st.session_state["final"].append(s)
                 
         except:
-            st.error('Not a valid URL')
+            st.error('Not a valid URL')"""
 #st.sidebar.markdown("<hr>", unsafe_allow_html = True)
 #col, col_an = st.columns([1, 0.365])
 confirm = conf1.button("Compare")
