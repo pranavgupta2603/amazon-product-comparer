@@ -21,10 +21,10 @@ import base64
 import uuid
 #import pyperclip
 #from IPython.core.display import HTML
-from bokeh.models.widgets import Button, Div
-from bokeh.models import CustomJS
-from streamlit_bokeh_events import streamlit_bokeh_events
-from bokeh.io import show
+from bokeh.plotting import figure
+import plotly.express as px
+import plotly.graph_objects as go
+
 
 # In[2]:
 
@@ -99,6 +99,7 @@ def getrate(df):
     print(d0, d1, deltaT)
     print(int(p[1]))
     print(revenue)"""
+
     return df_len, deltaT, rate, ind_time_diff, ind_rating, ind_verified, ind_helped, count_of_day, count_of_five_star, ind_hun_days
 #p = ["", "1"]
 #df_len, deltaT, rate, revenue = getrate(p)
@@ -361,6 +362,14 @@ def create_vars(func_col):
                 st.button("X", key=str(n))
             except:
                  pass
+def create_graph(fig, df):
+    df['date'] = pd.to_datetime(df.date, infer_datetime_format = True)
+    df['date'] = df['date'].apply(lambda x: pd.Timestamp(x).strftime('%Y-%m-%d'))
+    df.sort_values(by = 'date', inplace = True, ascending=True)
+    y_data = [i+1 for i in range(0, len(df))]
+    fig.add_trace(go.Scatter(x=df["date"], y=y_data, name=list(set(df["product"]))[0][0:20]+"..."))
+    return fig
+    
 # In[42]:
 
 urls = open('urls5.txt', 'r')
@@ -379,8 +388,8 @@ all_reviews = []
 all_amazon_ratings = []
 all_count_of_day = []
 string = ""
-prime = True
-today = parse(date.today().strftime("%Y-%m-%d"))
+fig = go.Figure()
+prime = Falsetoday = parse(date.today().strftime("%Y-%m-%d"))
 st.set_page_config(
      page_title="Product Reviews Comparer",
      layout="wide")
@@ -580,9 +589,14 @@ if confirm and len(st.session_state.final)> 1:
         prime_session = False
         
     theurls = st.session_state["final"]
-    with st.spinner('Creating Table...'):
+    prime=False
+    spin = st.empty()
+    stat = st.empty()
+    #reqs_spin = st.empty()
+    while prime==False:
+        
+        
         id_place.code(st.session_state["iden"].replace(".txt", ""))
-        stat = st.empty()
         
         for i in theurls:
             
@@ -600,56 +614,52 @@ if confirm and len(st.session_state.final)> 1:
             print(i)
             try:
                 df = s3.get_object(Bucket='productreviewsdata', Key="alldata/"+file_name)
-                last = parse(df["LastModified"].strftime("%Y-%m-%d"))
-                diff = (today-last).days
-                
-                if diff > 5:
-                    res.Object('productreviewsdata', "alldata/"+file_name).delete()
-                    s3.get_object(Bucket='productreviewsdata', Key="alldata/"+file_name) #causes an error
+                    
+                body = df["Body"].read().decode('utf-8')
+                df_data = pd.read_csv(StringIO(body))
+                try:
+                    title = list(set(df_data["product"]))[0]
+                except IndexError:
+                    print(df_data)
+                    break
+                #data = scrape(i, e)
+                #while data["product_title"] == None or data["reviews"] == None:
+                #    data = scrape(i, e)
+                stat.info("Getting " + title + "....")
+                product_names.append(title)
+                #data["product_link"] = "https://www.amazon.in"+data["product_link"]
+                #price, amazon_rating = get_details(data["product_link"])
+                #all_amazon_ratings.append(amazon_rating)
+                try:
+                    
+                    all_amazon_ratings.append(str(list(set(df_data["amazon_rating"]))[0]))
+                except:
+                    all_amazon_ratings.append("-")
+
+                urls_used.append(list(set(df_data["url"]))[0])
+                string = string+list(set(df_data["url"]))[0]+"\n"
+                #review_len = get_total_reviews(data)
+                #st.write(data["product_title"], price)
+                #print(review_len)
+                #print(df_data)
+                #print(len(df_data))
+                if len(df_data)==0:
+                    pass
                 else:
                     
-                    body = df["Body"].read().decode('utf-8')
-                    df_data = pd.read_csv(StringIO(body))
-                    try:
-                        title = list(set(df_data["product"]))[0]
-                    except IndexError:
-                        print(df_data)
-                        break
-                    #data = scrape(i, e)
-                    #while data["product_title"] == None or data["reviews"] == None:
-                    #    data = scrape(i, e)
-                    stat.info("Getting " + title + "....")
-                    product_names.append(title)
-                    #data["product_link"] = "https://www.amazon.in"+data["product_link"]
-                    #price, amazon_rating = get_details(data["product_link"])
-                    #all_amazon_ratings.append(amazon_rating)
-                    try:
-                        
-                        all_amazon_ratings.append(str(list(set(df_data["amazon_rating"]))[0]))
-                    except:
-                        all_amazon_ratings.append("-")
-
-                    urls_used.append(list(set(df_data["url"]))[0])
-                    string = string+list(set(df_data["url"]))[0]+"\n"
-                    #review_len = get_total_reviews(data)
-                    #st.write(data["product_title"], price)
-                    #print(review_len)
-                    #print(df_data)
-                    #print(len(df_data))
-                    if len(df_data)==0:
-                        pass
-                    else:
-                        df_len, deltaT, rate, ind_time_diff, ind_rating, ind_verified, ind_helped, count_of_day, count_of_five_star, ind_hun_days = getrate(df_data)
-                        print(df_len)
-                        all_reviews.append(str(df_len))
-                        all_time_diff.append(ind_time_diff)
-                        print(ind_time_diff)
-                        all_rating.append(ind_rating)
-                        all_verified.append(ind_verified)
-                        all_helped.append(ind_helped)
-                        all_count_of_day.append(count_of_day)
-                        all_five_star.append(count_of_five_star)
-                        all_hun_days.append(ind_hun_days)
+                    fig = create_graph(fig, df_data)
+                    df_len, deltaT, rate, ind_time_diff, ind_rating, ind_verified, ind_helped, count_of_day, count_of_five_star, ind_hun_days = getrate(df_data)
+                    print(df_len)
+                    all_reviews.append(str(df_len))
+                    all_time_diff.append(ind_time_diff)
+                    #print(ind_time_diff)
+                    all_rating.append(ind_rating)
+                    all_verified.append(ind_verified)
+                    all_helped.append(ind_helped)
+                    all_count_of_day.append(count_of_day)
+                    all_five_star.append(count_of_five_star)
+                    all_hun_days.append(ind_hun_days)
+                    prime=True
                     
             except botocore.exceptions.ClientError:
                 st.info("Request sent for " + asin)
@@ -707,10 +717,18 @@ if confirm and len(st.session_state.final)> 1:
         else:
             res.Object('productreviewsdata', 'sessions/'+st.session_state["iden"]).put(Body=string)
             """
+        
         dataf = pd.DataFrame({'Product': [], 'Our Rating': [], 'Total Reviews': [], 'No. of Reviews less than 100 days':[], 'No. of Reviews less than 100 days given 5 Stars':[],'Amazon Given Rating': [], 'URL': []})
-    
+        
         if prime and len(all_time_diff) == len(st.session_state["final"]):
-            
+            fig.update_layout(
+                title="Graph of reviews",
+                xaxis_title="Date",
+                yaxis_title="No. of Reviews",
+                legend_title="Products",
+                font=dict(
+                    family="Courier New, monospace",
+                    color="black"))
             rates = relative_rates(all_time_diff, all_rating, all_verified, all_helped)
             for record in range(0, len(urls_used)):
                 #dataf.append([product_names[record], all_reviews[record], rates[record], all_amazon_ratings[record]])
@@ -729,11 +747,19 @@ if confirm and len(st.session_state.final)> 1:
             dataf.set_index('Product', inplace=True)
             stat.empty()
             #st.table(dataf.style.format({"Total Reviews": "{:.0f}"}))
+            
             st.table(dataf)
+            st.plotly_chart(fig)
             #st.dataframe(dataf)
         else:
             stat.empty()
-            st.info("Your request is being processed...")
+            #reqs_spin.empty()
+            spin.info("Your request is being processed...")
+            time.sleep(10)
             
+            
+
+
+                
                     
         
