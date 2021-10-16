@@ -416,37 +416,41 @@ if "final" not in st.session_state:
     st.session_state["final"] = []
 if "chosen" not in st.session_state:
     st.session_state.chosen = ""
+if "iden" not in st.session_state:
+    st.session_state["iden"] = None
 #st.markdown("<hr>", unsafe_allow_html=True)
 
 #lay1, lay2 = st.columns(2)
 
 #enter_it, lol2, create_it = st.sidebar.columns(3)
-st.sidebar.text("Unique ID:")
 enter_it = st.sidebar.container()
 lol2 = st.sidebar.container()
 create_it = st.sidebar.container()
 #st.sidebar.markdown("""<hr>""", unsafe_allow_html=True)
-enter_uni_id = lol2.text_input("Enter Unique ID:")
+enter_uni_id = lol2.text_input("Enter Comparison ID if you have one:")
 lol2.write("OR")
 with enter_it:
     id_place = st.empty()
-if "iden" not in st.session_state:
+if st.session_state["iden"] == None:
     st.session_state["create_it"] = 0
 else:
     id_place.code(st.session_state["iden"].replace(".txt", ""))
-if "create_it" in st.session_state:
-    enter_it.warning("Keep Session ID to access and save your comparisons.")
+    enter_it.warning("Keep Comparison ID to access and save your comparisons.")
+if "create_it" in st.session_state and st.session_state["create_it"] != 0:
+    pass
 with lol2:
-    thing = st.button("Create Session ID")
+    thing = st.button("Create Comparison ID")
     if thing:
         if st.session_state["create_it"] !=0:
             id_place.code(st.session_state["iden"].replace(".txt", ""))
+            enter_it.warning("Keep Comparison ID to access and save your comparisons.")
             #id_place.code(st.session_state["iden"].replace(".txt", ""))
             prime_session=False
         else:
             iden = str(uuid.uuid4())
             st.session_state["iden"] = iden + ".txt"
             id_place.code(iden)
+            enter_it.warning("Keep Comparison ID to access and save your comparisons.")
             st.session_state["create_it"] = 1
             prime_session = False
 
@@ -491,6 +495,7 @@ else:
         iden = enter_uni_id.replace(".txt", "")
         st.session_state["iden"] = iden+".txt"
         id_place.code(iden)
+        enter_it.warning("Keep Comparison ID to access and save your comparisons.")
         st.sidebar.markdown("""<hr>""", unsafe_allow_html=True)
 
     except:
@@ -548,214 +553,220 @@ if con:
             st.error('Not a valid URL')"""
 #st.sidebar.markdown("<hr>", unsafe_allow_html = True)
 #col, col_an = st.columns([1, 0.365])
-with st.sidebar.form(key='my_form'):
-    placeholder = st.empty()
-    s = placeholder.text_input(label='Enter URL')
-    submit = st.form_submit_button(label='Submit')
+if st.session_state["iden"] == None:
+    pass
+else:
+    
+    with st.sidebar.form(key='my_form'):
+        placeholder = st.empty()
+        s = placeholder.text_input(label='Enter URL')
+        submit = st.form_submit_button(label='Submit')
+                
+                
+    if submit:
+        try:
+            check_paste = requests.get(s)
+            if s in st.session_state["final"] or s.find("amazon.in") == -1:
+                pass
+            else:
+                st.session_state["final"].append(s)
             
-            
-if submit:
-    try:
-        check_paste = requests.get(s)
-        if s in st.session_state["final"] or s.find("amazon.in") == -1:
+        except:
+            st.error('Not a valid URL')
+                
+    conf1, refre1 = st.sidebar.columns([1, 1])
+    print(st.session_state.final)
+
+    confirm = conf1.button("Compare")
+    refresh = refre1.button("Refresh List", key="refresh")
+    if refresh:
+        st.session_state.final = []
+    #list_down()
+    all_the_asin = []
+    if len(st.session_state.final) == 0:
             pass
-        else:
-            st.session_state["final"].append(s)
-        
-    except:
-        st.error('Not a valid URL')
+    else: 
+        exp=st.expander("Expand")
+        with exp:
+            create_vars(st.columns(len(st.session_state.final)))
+    if confirm and len(st.session_state.final)> 1:
+        #print(st.session_state["w"])
+        if "iden" not in st.session_state:
+            iden = str(uuid.uuid4()) 
+            st.session_state["iden"] = iden+ ".txt"
+            id_place.code(iden)
+            enter_it.warning("Keep Comparison ID to access and save your comparisons.")
+            prime_session = False
             
-conf1, refre1 = st.sidebar.columns([1, 1])
-print(st.session_state.final)
-
-confirm = conf1.button("Compare")
-refresh = refre1.button("Refresh List", key="refresh")
-if refresh:
-    st.session_state.final = []
-#list_down()
-all_the_asin = []
-if len(st.session_state.final) == 0:
-        pass
-else: 
-    exp=st.expander("Expand")
-    with exp:
-        create_vars(st.columns(len(st.session_state.final)))
-if confirm and len(st.session_state.final)> 1:
-    #print(st.session_state["w"])
-    if "iden" not in st.session_state:
-        iden = str(uuid.uuid4()) 
-        st.session_state["iden"] = iden+ ".txt"
-        id_place.code(iden)
-        prime_session = False
-        
-    theurls = st.session_state["final"]
-    prime=False
-    spin = st.empty()
-    stat = st.empty()
-    #reqs_spin = st.empty()
-    while prime==False:
-        
-        
-        id_place.code(st.session_state["iden"].replace(".txt", ""))
-        
-        for i in theurls:
+        theurls = st.session_state["final"]
+        prime=False
+        spin = st.empty()
+        stat = st.empty()
+        #reqs_spin = st.empty()
+        while prime==False:
             
-            clear_none()
-            try:
-                asin = find_asin(i)
-                if len(asin) != 10:
-                    raise ValueError
-            except:
-                st.write("ASIN NUMBER NOT FOUND IN URL!")
-                prime = False
-                break
             
-            file_name = asin+'.csv'
-            print(i)
-            try:
-                df = s3.get_object(Bucket='productreviewsdata', Key="alldata/"+file_name)
-                    
-                body = df["Body"].read().decode('utf-8')
-                df_data = pd.read_csv(StringIO(body))
+            id_place.code(st.session_state["iden"].replace(".txt", ""))
+            enter_it.warning("Keep Comparison ID to access and save your comparisons.")
+            
+            for i in theurls:
+                
+                clear_none()
                 try:
-                    title = list(set(df_data["product"]))[0]
-                except IndexError:
-                    print(df_data)
-                    break
-                #data = scrape(i, e)
-                #while data["product_title"] == None or data["reviews"] == None:
-                #    data = scrape(i, e)
-                stat.info("Getting " + title + "....")
-                product_names.append(title)
-                #data["product_link"] = "https://www.amazon.in"+data["product_link"]
-                #price, amazon_rating = get_details(data["product_link"])
-                #all_amazon_ratings.append(amazon_rating)
-                try:
-                    
-                    all_amazon_ratings.append(str(list(set(df_data["amazon_rating"]))[0]))
+                    asin = find_asin(i)
+                    if len(asin) != 10:
+                        raise ValueError
                 except:
-                    all_amazon_ratings.append("-")
+                    st.write("ASIN NUMBER NOT FOUND IN URL!")
+                    prime = False
+                    break
+                
+                file_name = asin+'.csv'
+                print(i)
+                try:
+                    df = s3.get_object(Bucket='productreviewsdata', Key="alldata/"+file_name)
+                        
+                    body = df["Body"].read().decode('utf-8')
+                    df_data = pd.read_csv(StringIO(body))
+                    try:
+                        title = list(set(df_data["product"]))[0]
+                    except IndexError:
+                        print(df_data)
+                        break
+                    #data = scrape(i, e)
+                    #while data["product_title"] == None or data["reviews"] == None:
+                    #    data = scrape(i, e)
+                    stat.info("Getting " + title + "....")
+                    product_names.append(title)
+                    #data["product_link"] = "https://www.amazon.in"+data["product_link"]
+                    #price, amazon_rating = get_details(data["product_link"])
+                    #all_amazon_ratings.append(amazon_rating)
+                    try:
+                        
+                        all_amazon_ratings.append(str(list(set(df_data["amazon_rating"]))[0]))
+                    except:
+                        all_amazon_ratings.append("-")
 
-                urls_used.append(list(set(df_data["url"]))[0])
-                string = string+list(set(df_data["url"]))[0]+"\n"
-                #review_len = get_total_reviews(data)
-                #st.write(data["product_title"], price)
-                #print(review_len)
-                #print(df_data)
-                #print(len(df_data))
-                if len(df_data)==0:
+                    urls_used.append(list(set(df_data["url"]))[0])
+                    string = string+list(set(df_data["url"]))[0]+"\n"
+                    #review_len = get_total_reviews(data)
+                    #st.write(data["product_title"], price)
+                    #print(review_len)
+                    #print(df_data)
+                    #print(len(df_data))
+                    if len(df_data)==0:
+                        pass
+                    else:
+                        
+                        fig = create_graph(fig, df_data)
+                        df_len, deltaT, rate, ind_time_diff, ind_rating, ind_verified, ind_helped, count_of_day, count_of_five_star, ind_hun_days = getrate(df_data)
+                        print(df_len)
+                        all_reviews.append(str(df_len))
+                        all_time_diff.append(ind_time_diff)
+                        #print(ind_time_diff)
+                        all_rating.append(ind_rating)
+                        all_verified.append(ind_verified)
+                        all_helped.append(ind_helped)
+                        all_count_of_day.append(count_of_day)
+                        all_five_star.append(count_of_five_star)
+                        all_hun_days.append(ind_hun_days)
+                        prime=True
+                        
+                except botocore.exceptions.ClientError:
+                    st.info("Request sent for " + asin)
+                    create_df = pd.DataFrame({"title":[], "content": [], 'date':[], "author": [], "rating":[], "product":[], "url":[], "verified":[], "helped": [], "amazon_rating": []})
+                    bucket = 'productreviewsdata'
+                    csv_buffer = StringIO()
+                    create_df.to_csv(csv_buffer, index=False)
+                    res.Object(bucket, 'alldata/'+asin+'.csv').put(Body=csv_buffer.getvalue())
+                    string = string + "https://www.amazon.in/product-reviews/"+asin+"\n"
+                    prime=False
+            if prime_session ==True:
+                s_check = string.split("\n")
+                try:
+                    while True:
+                        s_check.remove("")
+                except ValueError:
+                    pass
+                    
+                print("s_check")
+                print(s_check)
+                if len(s_check) != len(st.session_state.final):
                     pass
                 else:
-                    
-                    fig = create_graph(fig, df_data)
-                    df_len, deltaT, rate, ind_time_diff, ind_rating, ind_verified, ind_helped, count_of_day, count_of_five_star, ind_hun_days = getrate(df_data)
-                    print(df_len)
-                    all_reviews.append(str(df_len))
-                    all_time_diff.append(ind_time_diff)
-                    #print(ind_time_diff)
-                    all_rating.append(ind_rating)
-                    all_verified.append(ind_verified)
-                    all_helped.append(ind_helped)
-                    all_count_of_day.append(count_of_day)
-                    all_five_star.append(count_of_five_star)
-                    all_hun_days.append(ind_hun_days)
-                    prime=True
-                    
-            except botocore.exceptions.ClientError:
-                st.info("Request sent for " + asin)
-                create_df = pd.DataFrame({"title":[], "content": [], 'date':[], "author": [], "rating":[], "product":[], "url":[], "verified":[], "helped": [], "amazon_rating": []})
-                bucket = 'productreviewsdata'
-                csv_buffer = StringIO()
-                create_df.to_csv(csv_buffer, index=False)
-                res.Object(bucket, 'alldata/'+asin+'.csv').put(Body=csv_buffer.getvalue())
-                string = string + "https://www.amazon.in/product-reviews/"+asin+"\n"
-                prime=False
-        if prime_session ==True:
-            s_check = string.split("\n")
-            try:
-                while True:
-                    s_check.remove("")
-            except ValueError:
-                pass
-                
-            print("s_check")
-            print(s_check)
-            if len(s_check) != len(st.session_state.final):
-                pass
+                    for ses in sessions_here:
+                        ses_check = ses.split("\n")
+                        try:
+                            while True:
+                                ses_check.remove("")
+                        except ValueError:
+                            pass
+                        print("ses_check")
+                        print(ses_check)
+                        if set(s_check) == set(ses_check):
+                            break
+                    else:
+                        string = already_in_body+",\n"+string
+                        res.Object('productreviewsdata', 'sessions/'+st.session_state["iden"]).put(Body=string)
+            
             else:
-                for ses in sessions_here:
-                    ses_check = ses.split("\n")
-                    try:
-                        while True:
-                            ses_check.remove("")
-                    except ValueError:
-                        pass
-                    print("ses_check")
-                    print(ses_check)
-                    if set(s_check) == set(ses_check):
-                        break
+                s_check = string.split("\n")
+                try:
+                    while True:
+                        s_check.remove("")
+                except ValueError:
+                    pass
+                if len(s_check) !=len(st.session_state.final):
+                    pass
                 else:
+                    res.Object('productreviewsdata', 'sessions/'+st.session_state["iden"]).put(Body=string)
+                        
+            """       
+                if string not in sessions_here:
                     string = already_in_body+",\n"+string
                     res.Object('productreviewsdata', 'sessions/'+st.session_state["iden"]).put(Body=string)
-        
-        else:
-            s_check = string.split("\n")
-            try:
-                while True:
-                    s_check.remove("")
-            except ValueError:
-                pass
-            if len(s_check) !=len(st.session_state.final):
-                pass
             else:
                 res.Object('productreviewsdata', 'sessions/'+st.session_state["iden"]).put(Body=string)
-                    
-        """       
-            if string not in sessions_here:
-                string = already_in_body+",\n"+string
-                res.Object('productreviewsdata', 'sessions/'+st.session_state["iden"]).put(Body=string)
-        else:
-            res.Object('productreviewsdata', 'sessions/'+st.session_state["iden"]).put(Body=string)
-            """
-        
-        dataf = pd.DataFrame({'Product': [], 'Our Rating': [], 'Total Reviews': [], 'No. of Reviews less than 100 days':[], 'No. of Reviews less than 100 days given 5 Stars':[],'Amazon Given Rating': [], 'URL': []})
-        
-        if prime and len(all_time_diff) == len(st.session_state["final"]):
-            fig.update_layout(
-                title="Graph of reviews",
-                xaxis_title="Date",
-                yaxis_title="No. of Reviews",
-                legend_title="Products",
-                font=dict(
-                    family="Courier New, monospace",
-                    color="black"))
-            rates = relative_rates(all_time_diff, all_rating, all_verified, all_helped)
-            for record in range(0, len(urls_used)):
-                #dataf.append([product_names[record], all_reviews[record], rates[record], all_amazon_ratings[record]])
-                
-                to_insert = {
-                            'Product': product_names[record][:70]+"...",
-                            'Our Rating': rates[record],
-                            'Total Reviews': all_reviews[record],
-                            'No. of Reviews less than 100 days': str(all_count_of_day[record]),
-                            'No. of Reviews less than 100 days given 5 Stars': str(all_five_star[record]),
-                            'Amazon Given Rating': all_amazon_ratings[record],
-                            'URL': urls_used[record]
-                            }
-                dataf = dataf.append(to_insert, ignore_index=True)
-            dataf = dataf.sort_values(by=['Our Rating'], ascending=False)
-            dataf.set_index('Product', inplace=True)
-            stat.empty()
-            #st.table(dataf.style.format({"Total Reviews": "{:.0f}"}))
+                """
             
-            st.table(dataf)
-            st.plotly_chart(fig)
-            #st.dataframe(dataf)
-        else:
-            stat.empty()
-            #reqs_spin.empty()
-            spin.info("Your request is being processed...")
-            time.sleep(10)
+            dataf = pd.DataFrame({'Product': [], 'Our Rating': [], 'Total Reviews': [], 'No. of Reviews less than 100 days':[], 'No. of Reviews less than 100 days given 5 Stars':[],'Amazon Given Rating': [], 'URL': []})
+            
+            if prime and len(all_time_diff) == len(st.session_state["final"]):
+                fig.update_layout(
+                    title="Graph of reviews",
+                    xaxis_title="Date",
+                    yaxis_title="No. of Reviews",
+                    legend_title="Products",
+                    font=dict(
+                        family="Courier New, monospace",
+                        color="black"))
+                rates = relative_rates(all_time_diff, all_rating, all_verified, all_helped)
+                for record in range(0, len(urls_used)):
+                    #dataf.append([product_names[record], all_reviews[record], rates[record], all_amazon_ratings[record]])
+                    
+                    to_insert = {
+                                'Product': product_names[record][:70]+"...",
+                                'Our Rating': rates[record],
+                                'Total Reviews': all_reviews[record],
+                                'No. of Reviews less than 100 days': str(all_count_of_day[record]),
+                                'No. of Reviews less than 100 days given 5 Stars': str(all_five_star[record]),
+                                'Amazon Given Rating': all_amazon_ratings[record],
+                                'URL': urls_used[record]
+                                }
+                    dataf = dataf.append(to_insert, ignore_index=True)
+                dataf = dataf.sort_values(by=['Our Rating'], ascending=False)
+                dataf.set_index('Product', inplace=True)
+                stat.empty()
+                #st.table(dataf.style.format({"Total Reviews": "{:.0f}"}))
+                
+                st.table(dataf)
+                st.plotly_chart(fig)
+                #st.dataframe(dataf)
+            else:
+                stat.empty()
+                #reqs_spin.empty()
+                spin.info("Your request is being processed...")
+                time.sleep(10)
             
             
 
