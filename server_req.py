@@ -168,7 +168,12 @@ def finding_data(data, url):
                     r['verified'] = "1"
             else:
                 r['verified'] = "0"
-            r["amazon_rating"] = data["amazon_given_rating"].split(" out")[0]      
+            r["amazon_rating"] = data["amazon_given_rating"].split(" out")[0]
+            try:
+                
+                print(r['amazon_choice'])
+            except:
+                pass
         
     #print(data)
     return data
