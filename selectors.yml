@@ -53,3 +53,7 @@ amazon_given_rating:
     css: 'div.a-row div.a-fixed-left-grid-col.a-col-left'
     xpath: null
     type: Text
+amazon_choice:
+    css: span.ac-badge-text-secondary
+    xpath: null
+    type: Text
