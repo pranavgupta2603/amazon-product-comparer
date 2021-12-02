@@ -15,11 +15,15 @@ import boto3
 import botocore 
 from io import StringIO
 import pandas as pd
-#import streamlit as st
-#import streamlit.components.v1 as components
+import streamlit as st
+import streamlit.components.v1 as components
 import base64
 import uuid
-
+#import pyperclip
+#from IPython.core.display import HTML
+from bokeh.plotting import figure
+import plotly.express as px
+import plotly.graph_objects as go
 
 
 # In[2]:
@@ -37,35 +41,40 @@ res = boto3.resource("s3",
                      region_name='ap-south-1',
                      aws_access_key_id=AWS_ACCESS_KEY_ID,
                      aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
-
-
-# In[3]:
-
-
 def getrate(df):
     ind_time_diff = []
     ind_rating = []
     ind_helped = []
+    count_of_day = 0
+    count_of_five_star = 0
     
-    df_len = len(df)
     #print(min(df['date']))
     
     df['date'] = pd.to_datetime(df.date, infer_datetime_format = True)
     df['date'] = df['date'].apply(lambda x: pd.Timestamp(x).strftime('%Y-%m-%d'))
     df.sort_values(by = 'date', inplace = True, ascending=True)
-    df.to_csv('data.csv', index=False)
-
+    #df.to_csv('data.csv', index=False)
+    df = df.query('verified == 1')
+    df_len = len(df)
     d0 = parse(min(df['date']))
     d1 = parse(max(df['date']))
     today = parse(date.today().strftime("%Y-%m-%d"))
     for i in df["date"].values:
         ind_time_diff.append((today-parse(i)).days)
-    #print(ind_time_diff) 
+    for i in ind_time_diff:
+        if i <=100:
+            count_of_day+=1
+    #print(count_of_day)
+    ind_hun_days = ind_time_diff[len(ind_time_diff)-count_of_day:]
     for i in range(0, len(df['rating'].values)):
         if df['rating'].values[i] == None or df['rating'].values[i] == "" or df['rating'].values[i] == "None":
             ind_rating.append(0)
         else:  
-            ind_rating.append(int(float(df['rating'].values[i])/5))
+            ind_rating.append(float(df['rating'].values[i])/5)
+    ind_rating_count_of_day = [i*5 for i in ind_rating[len(ind_time_diff)-count_of_day:]]
+    for i in ind_rating_count_of_day:
+        if i == 5:
+            count_of_five_star += 1
     ind_verified = df['verified'].values
     for i in range(0, len(df['helped'].values)):
         if df['helped'].values[i] == None:
@@ -79,6 +88,9 @@ def getrate(df):
                 ind_helped.append(int(df['helped'].values[i]) + 1)
         
     deltaT = abs((d1-d0).days)
+    if deltaT == 0:
+        deltaT = 1
+    #print(deltaT)
     rate = (df_len/deltaT)
     #revenue = rate * int(p[1])
     #print(df_len)
@@ -86,7 +98,8 @@ def getrate(df):
     print(d0, d1, deltaT)
     print(int(p[1]))
     print(revenue)"""
-    return df_len, deltaT, rate, ind_time_diff, ind_rating, ind_verified, ind_helped
+
+    return df_len, deltaT, rate, ind_time_diff, ind_rating, ind_verified, ind_helped, count_of_day, count_of_five_star, ind_hun_days
 #p = ["", "1"]
 #df_len, deltaT, rate, revenue = getrate(p)
 
@@ -168,12 +181,8 @@ def finding_data(data, url):
                     r['verified'] = "1"
             else:
                 r['verified'] = "0"
-            r["amazon_rating"] = data["amazon_given_rating"].split(" out")[0]
-            try:
+            
                 
-                print(r['amazon_choice'])
-            except:
-                pass
         
     #print(data)
     return data
@@ -195,7 +204,7 @@ def clear_none():
     #df.dropna(axis="rows", how="any", inplace = True)
     #df.to_csv('datalist.csv', index=False)
     with open('data.csv', 'w+', encoding="utf-8", errors="ignore") as outfile:
-        writer = csv.DictWriter(outfile, fieldnames=["title","content","date", "author","rating","product","url", "verified", "helped", "amazon_rating"])
+        writer = csv.DictWriter(outfile, fieldnames=["title","content","date", "author","rating","product","url", "verified", "helped"])
         writer.writeheader()
     outfile.close()
 #clear_none()
@@ -208,9 +217,9 @@ def get_details(link):
     weight = 0
     count = 0
     details = scrape(link, price_e)
-    while details['amazon_given_rating'] == None and count < 100:
+    while details['amazon_given_rating'] == None and count < 15:
         details = scrape(link, price_e)
-        #print("count: " + str(count))
+        print("count: " + str(count))
         count += 1
 
     if details["price"] == None:
@@ -258,7 +267,7 @@ def relative_rates(timediff, allrating, allverified, all_helped):
     for i in range(0, len(all_helped)):
         temp_arr.append(max(all_helped[i]))
     norm_fact = max(temp_arr)
-    print(temp_arr)
+    #print(temp_arr)
     
     for i in range(0, len(timediff)):
         for j in range(0, len(timediff[i])):
@@ -280,8 +289,6 @@ def find_all_links(link, num):
     link = link.split("?")
     all_links = []
     num_pages = math.ceil(int(num)/10)
-    if num_pages > 500:
-        num_pages = 500
     for page in range(0, num_pages):
         link[1] = "pageNumber=" + str(page+1)
         temp_data = {"next_page": "?".join(link)}
@@ -308,7 +315,10 @@ def find_asin(link):
     for i in range(0, len(link)):
         if link[i] == "product-reviews":
             asin = link[i+1]
-    
+        if link[i] == "dp":
+            asin=link[i+1][0:10]
+        if link[i] == "product":
+            asin=link[i+1][0:10]
     return asin
 
 
@@ -323,93 +333,41 @@ def get_total_reviews(data):
 
 def myFunc(e):
     return e["Our Rating"]
-
-
-# In[42]:
-
-
-#urls = open('urls5.txt', 'r')
-
-while True:
+def list_down():
+    all_the_asin = []
+    for l in range(0, len(st.session_state.linksFinal)):
+        col1, col2= st.columns([2, 0.5])
+        exp = col1.expander(st.session_state.linksFinal[l].split("/ref")[0])
+        col2.button("X", key=str(l))
+        ASIN = find_asin(st.session_state.linksFinal[l])
+        all_the_asin.append(ASIN)
+        the_link = """https://ws-in.amazon-adsystem.com/widgets/q?ServiceVersion=20070822&OneJS=1&Operation=GetAdHtml&MarketPlace=IN&source=ss&ref=as_ss_li_til&ad_type=product_link&tracking_id=universalcont-21&language=en_IN&marketplace=amazon&region=IN&placement="""+ASIN+"""&asins="""+ASIN+"""&show_border=true&link_opens_in_new_window=true"""
+        with exp:
+            components.iframe(the_link, height=240, width=120)
     
-    e = Extractor.from_yaml_file('selectors.yml')
-    price_e = Extractor.from_yaml_file('details.yml')
-    #datalist = pd.read_csv('datalist.csv')
-    all_time_diff = []
-    all_rating = []
-    all_verified = []
-    all_helped = []
-    urls_used = []
-    product_names = []
-    all_reviews = []
-    all_amazon_ratings = []
-    string = ""
-    prime = True
-    today = parse(date.today().strftime("%Y-%m-%d"))
+    
+          
+    #print(globals()["col"])
+    #print(globals()["col_an"])
+    #for n, val in enumerate(st.session_state["final"]):
+     #   globals()["var%d"%n] = val
 
-    bucket = res.Bucket('productreviewsdata')
-    for o in bucket.objects.all():
-        if o.key.find('sessions/')== -1 and o.key !="alldata/":
-            #file = o.key.replace("alldata/", "")
-            
-            if len(o.key.replace("alldata/","").replace(".csv","")) != 10:
-                print(o.key)
-                res.Object('productreviewsdata', o.key).delete()
-            else:
-                df = s3.get_object(Bucket='productreviewsdata', Key=o.key)
-                
-                df_data = pd.read_csv(df["Body"])
-                last = parse(df["LastModified"].strftime("%Y-%m-%d"))
-                diff = (today-last).days
-            #data['date'] = data['date'].apply(lambda x: pd.Timestamp(x).strftime('%Y-%m-%d'))
-            #d1 =(parse(date.today().strftime("%Y-%m-%d")) - parse(max(data['date']))).days
-            if len(df_data)==0:
-                asin = o.key.replace("alldata/", "").replace(".csv", "")
-                i = "https://www.amazon.in/product-reviews/"+asin
-                data = scrape(i, e)
-                while data["product_title"]==None and data['total_reviews']==None:
-                    data = scrape(i, e)
-                review_len = get_total_reviews(data)
-                
-                if data["next_page"] == None:
-                    all_links = []
-                    all_links.append(i)
-                else:
-                    all_links = find_all_links(data["next_page"], review_len)
-                df_data = df_data.iloc[0:0]
-                with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
-                    results = {executor.submit(scrape, link, e): link for link in all_links}
-                    for result in concurrent.futures.as_completed(results):
-                        link = results[result]
-                        print(link)
-                        data = result.result()
-                        
-                        this_prime=True
-                        while this_prime:
-                            if data["product_title"] == None:
-                                data = scrape(link, e)
-                            else:
-                                this_prime=False
-
-                        if data["reviews"] == None:
-                            pass
-                        else:
-                            data = finding_data(data, i)
-                            for r in data["reviews"]:
-                                df_data = df_data.append(r, ignore_index = True)
-                            df_data.to_csv('data.csv', index = False)
-                    print(df_data)
-                    csv_buffer = StringIO()
-                    df_data.to_csv(csv_buffer, index=False)
-                    
-                    res.Object("productreviewsdata", "alldata/"+asin+".csv").put(Body=csv_buffer.getvalue())
-    else:
-        print("Completed check...")
-    time.sleep(10)
-
-
-
-
-
-
-
+def create_vars(func_col):
+    for n, val in enumerate(func_col):
+        globals()["var%d"%n] = val
+    for n in range(0, len(func_col)):
+        with globals()["var"+str(n)]:
+            try:
+                ASIN = find_asin(st.session_state.linksFinal[n])
+                the_link = """https://ws-in.amazon-adsystem.com/widgets/q?ServiceVersion=20070822&OneJS=1&Operation=GetAdHtml&MarketPlace=IN&source=ss&ref=as_ss_li_til&ad_type=product_link&tracking_id=universalcont-21&language=en_IN&marketplace=amazon&region=IN&placement="""+ASIN+"""&asins="""+ASIN+"""&show_border=true&link_opens_in_new_window=true"""
+                components.iframe(the_link, height=240, width=120)
+                st.button("X", key=str(n))
+            except Exception as e:
+                 st.write(e)
+def create_graph(fig, df):
+    df['date'] = pd.to_datetime(df.date, infer_datetime_format = True)
+    df['date'] = df['date'].apply(lambda x: pd.Timestamp(x).strftime('%Y-%m-%d'))
+    df.sort_values(by = 'date', inplace = True, ascending=True)
+    y_data = [i+1 for i in range(0, len(df))]
+    fig.add_trace(go.Scatter(x=df["date"], y=y_data, name=list(set(df["product"]))[0][0:20]+"..."))
+    return fig
