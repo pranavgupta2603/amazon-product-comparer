@@ -29,8 +29,8 @@ import plotly.graph_objects as go
 # In[2]:
 
 
-AWS_ACCESS_KEY_ID = 'AKIA4QZRAFHSF3EZPL73'
-AWS_SECRET_ACCESS_KEY = '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'
+AWS_ACCESS_KEY_ID = ''
+AWS_SECRET_ACCESS_KEY = ''
 
 s3 = boto3.client("s3", 
                   region_name='ap-south-1', 
